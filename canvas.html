@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+        var video = document.createElement('video')
+        video.src = 'http://www.sample-videos.com/video/mp4/720/big_buck_bunny_720p_1mb.mp4';
+        video.type = 'video/mp4';
+        video.style.height = '50vh';
+        video.loop = true;
+        video.muted = true;
+        video.autoplay = true;
+
+        //document.body.appendChild(video);
+        //video.play();
+
+        var canvas = document.createElement('canvas');
+        var ctx = canvas.getContext('2d');
+        canvas.style.height = '50vh';
+
+        document.body.appendChild(canvas);
+
+        var drawLoop = function () {
+            ctx.drawImage(video, 0, 0);
+            requestAnimationFrame(drawLoop);
+        }
+
+        video.addEventListener('canplaythrough', function () {
+            requestAnimationFrame(drawLoop);
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+        });
+    </script>
+</body>
+
+</html>
