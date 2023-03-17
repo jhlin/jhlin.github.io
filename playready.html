@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>Test PlayReady DRM support</title>
+</head>
+
+<body data-new-gr-c-s-check-loaded="8.904.0" data-gr-ext-installed="">
+  <h1>Open devtool to observe the result</h1>
+  <label for="framework">Select Content</label>
+  <select id="contents">
+  </select>
+  <button id="play" onclick="EMEPlay()">Play Selected Content</button>
+  <input type="checkbox" id="HW"><label for="HW">SL3000</label>
+  <br>
+  <video id="video" controls></video>
+  <script>
+
+    const CONTENTS = [
+      // From https://testweb.playready.microsoft.com/Content/Content3X
+      {
+        'desc': 'KIDS_3_H264_FHD', // H.264 1920x1080 @6Mbps
+        'ver': 3,
+        'KIDS': '{"kids":["0IbHou_5s0yzM80yOkKEpQ","_qgG2xbs4k2SKCxx6bhWqw"]}', // Video and audio protected using different keys
+        //'cenc': 'KIDS_3_H264_FHD.init',
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150,ckt:aescbc)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/228e2071-c79b-4bb7-b999-0f74801c924a/tearsofsteel_1080p_60s_24fps.6000kbps.1920x1080.h264-8b.2ch.128kbps.aac.avsep.cenc.mp4'
+      },
+      {
+        'desc': 'KIDS_3_H264_UHD', // H.264 3840x2160 @12Mbps
+        'ver': 3,
+        'KIDS': '{"kids":["hztjcu3Ow0ylvQ9tps-rxw","7vat9ESdVEyTnjI33kbGZQ"]}', // Video and audio protected using different KIDs
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/a37c33ec-5d3d-48c1-9da5-0fa30c2b74ab/tearsofsteel_4k_60s_24fps.12000kbps.3840x2160.h264-8b.2ch.128kbps.aac.avsep.cenc.mp4'
+      },
+      {
+        'desc': 'KIDS_3_H264_UHD_AUDIO_CLEAR', // H.264 3840x2160 @12Mbps
+        'ver': 3,
+        'KIDS': '{"kids":["hebIOOkt50eX1WVU5cfyhA"]}', // Video protected, audio clear
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/e220a11e-aa2c-4396-9d6c-daee6b1593be/tearsofsteel_4k_60s_24fps.12000kbps.3840x2160.h264-8b.2ch.128kbps.aac.audioclear.cenc.mp4'
+      },
+      {
+        'desc': 'KIDS_3_H264_10BIT_UHD', // H.264 10-bit depth 3840x2160 @12Mbps
+        'ver': 3,
+        'KIDS': '{"kids":["VkTAy6cAAkeZz_HWySNKeg"]}', // Video protected, audio clear
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/f3622498-a6d5-4aab-afca-ac63ef0bf88e/tearsofsteel_4k_60s_24fps.12000kbps.3840x2160.h264-10b.2ch.128kbps.aac.audioclear.mp4'
+      },
+      {
+        'desc': 'KIDS_3_HEVC_UHD', // HEVC 8-bit depth 3840x2160 @12Mbps
+        'ver': 3,
+        'KIDS': '{"kids":["eWPRNaM5wUyqyXIAriOw5Q"]}', // Video protected, audio clear
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/325cc092-e691-4002-95f5-e5fcc1e26e1d/tearsofsteel_4k_60s_24fps.12000kbps.3840x2160.h265-8b.2ch.128kbps.aac.audioclear.cenc.mp4'
+      },
+      {
+        'desc': 'KIDS_3_HEVC_10BIT_UHD', // HEVC 10-bit depth 3840x2160 @12Mbps
+        'ver': 3,
+        'KIDS': '{"kids":["fq-cnFjWo06Iam8QotLfVw"]}', // Video protected, audio clear
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/58505412-db41-447b-8adc-727811182ac3/tearsofsteel_4k_60s_24fps.12000kbps.3840x2160.h265-10b.2ch.128kbps.aac.audioclear.cenc.mp4'
+      },
+      {
+        'desc': 'KIDS_3_HEVC_10BIT_UHD@60', // HEVC 10-bit depth 3840x2160 @24Mbps, 60fps
+        'ver': 3,
+        'KIDS': '{"kids":["2IGsCzsHD0CEc4VOY2liUQ", "Yewxfe8FD0CDj_J3l933Bw"]}', // Video and audio protected using different KIDs
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/14c2221e-ff59-4cde-be80-612728650bca/bbb-3840x2160-cfg02-cenc-24mbps.mp4'
+      },
+      /* Skip files with same KIDs
+        * - HEVC 10-bit depth 3840x2160 @12Mbps, 60fps
+        * - HEVC 10-bit depth 3840x2160 @6Mbps, 60fps
+      */
+      {
+        'desc': 'KIDS_3_HEVC_HD', // HEVC 8-bit depth 1280x720 @2.4Mbps
+        'ver': 3,
+        'KIDS': '{ "kids":["jAgIT-749U2nk_5hw9_9Xg", "eW52K8lieEWF3a-4h00tNg"] }', // Video and audio protected using different KIDs
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/be3502d1-9dd0-4c12-90c2-e5b2ffe7398d/ms_media_test.main31.30fps.idr2.0slice.2340kbps.1280x720.h265.2ch.320kbps.aac_dashinit.cenc.separateKeys.42header.mp4'
+      },
+      {
+        'desc': 'KIDS_3_HEVC_HFHD', // HEVC 8-bit depth 920x1080 @4Mbps
+        'ver': 3,
+        'KIDS': '{ "kids":["kPfTygdgEkqsvfVGpn6xtw", "oUw8ycKIB0KUPAkDXvYkyQ"] }', // Video and audio protected using different KIDs
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/56a7fc70-33d3-4efd-853a-69e7535eca44/ms_media_test.main40.30fps.idr2.0slice.3834kbps.1920x1080.h265.2ch.320kbps.aac_dashinit.cenc.separateKeys.42header.mp4'
+      },
+      {
+        'desc': 'KIDS_3_HEVC_UHD', // HEVC 8-bit depth 3840x2160 @8Mbps 60fps
+        'ver': 3,
+        'KIDS': '{ "kids":["MODJwnM51E2UMx0BXyR77g", "VsYobKimWk2KcbT25GC1gQ"] }', // Video and audio protected using different KIDs
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/d301d13e-1d30-4e0b-9dd9-7bad252e673e/ms_media_test.main50.60fps.idr2.0slice.7982kbps.3840x2160.h265.2ch.320kbps.aac_dashinit.cenc.separateKeys.42header.mp4'
+      },
+      {
+        'desc': 'KIDS_3_HEVC_FHD', // HEVC 8-bit depth 1280x720 @2.4Mbps
+        'ver': 3,
+        // ISO/IEC 23001-7: 2011 (CENC v1), Clear NAL headers, 0 minimum bytes clear, aligned (16-byte) encrypted region
+        'KIDS': '{ "kids":["AmfjCTOPbEOl3WD_5mcecA"] }',
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/bbcf11c9-8d45-4a65-a5b5-aad7c138fe3b/ms_media_test.main31.30fps.idr2.0slice.2340kbps.1280x720.h265.cenc.unaligned.sliceheadersclear.mp4'
+      },
+      {
+        'desc': 'KIDS_3_H264_FHD_CENC', // H.264 1920x1080 @8Mbps, Audio & Video CENC v1 UVVU
+        'ver': 3,
+        'KIDS': '{ "kids":["AmfjCTOPbEOl3WD_5mcecA"] }', // Video only, No Audio
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/0ee6df2f-e0b8-4fc2-aa31-697fe7b16551/tears_of_steel.60s.high41.30fps.idr2.8slice.8000kbps.1920x1080.h264.2ch.320kbps.aac.cenc.align.0clear.uvu'
+      },
+      {
+        'desc': 'KIDS_3_H264_FHD_CENCV2', // H.264 1920x1080 @8Mbps, Audio & Video CENC v2 UVVU
+        'ver': 3,
+        // ISO/IEC FDIS 23001-7:2014, Second Edition (CENC v2), Clear NAL headers, 0 minimum bytes clear, unaligned, Clear Slice Headers
+        'KIDS': '{ "kids":["egyt6BiKjEG0DrPEZg-2Lg", "egyt6BiKjEG0DrPEZg-2Lg"] }',
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)',
+        'content': 'https://profficialsite.origin.mediaservices.windows.net/baa427a0-0716-4c9c-9da0-985a9899fac4/tears_of_steel.60s.high41.30fps.idr2.8slice.8000kbps.1920x1080.h264.2ch.320kbps.aac.cenc.unaligned.sliceheadersclear.uvu'
+      },
+      /* Skip files with same KIDs
+       * - H.264 1920x1080 @8Mbps Video only, No audio CENC v1 UVVU
+       * - H.264 1920x1080 @8Mbps Video only, No audio CENC v2 UVVU
+       */
+      // https://testweb.playready.microsoft.com/Content/Content4X
+      {
+        'desc': 'KIDS_4_VP9', // PLAYREADY-VP9-CTR-ISMV
+        'ver': 4,
+        // Fragmented MP4 file with a VP9 video track encrypted with CENC (CTR mode)
+        'KIDS': '{ "kids":["AAAAAPwDzeoAAAAAAAAAAA"] }',
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(contentkey:MeXKilhhoLl25CHFTGEDRg==,kid:00000000-03FC-EACD-0000-000000000000)',
+        'content': 'https://test.playready.microsoft.com/media/vp9/VP9_TearsOfSteel_12min_543_repackaged_20170523.mp4.ismv'
+      },
+      /* TODO: support DASH mpd?
+      {
+        'desc': 'KIDS_4_H264', // APPLESET-DASH-CBCS-bbb
+        'ver': 4,
+        // H264/AAC CENC CBCS with video and audio protected
+        'KIDS': '{"kids":["AAAAEAAQABAQABAAAAAAAQ", "AAAAEAAQABAQABAAAAAAAQ"]}',
+        'LA_URL': 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,ck:W31bfVt9W31bfVt9W31bfQ==,ckt:aescbc)',
+        'content': 'https://test.playready.microsoft.com/media/dash/APPLEENC_CBCS_BBB_1080p/1080p.mpd'
+      },
+      */
+    ];
+
+    function getContentFromSelect() {
+      const sb = document.getElementById('contents');
+      const selectedValues = [].filter
+        .call(sb.options, option => option.selected)
+        .map(option => option.value);
+      console.log(selectedValues + ': ' + CONTENTS[selectedValues].desc);
+      return CONTENTS[selectedValues];
+    }
+
+    function populateContentList() {
+      const sel = document.getElementById('contents');
+      if (sel.options.length === 0) {
+        CONTENTS.forEach(
+          (c, i) => sel.innerHTML = sel.innerHTML +
+            '<option value="' + i + '">' + c.desc + '</option>'
+        );
+        sel.options[0].selected = 'selected';
+      }
+    }
+
+    function requestLicense(url, session, message, callback) {
+      var xhr = new XMLHttpRequest();
+      var ready = false;
+      xhr.open('POST', url, true);
+      xhr.responseType = 'arraybuffer';
+      xhr.onload = (event) => {
+        console.log(`${event.type}: session='${session.sessionId}', status='${xhr.statusText}'`);
+        if (xhr.status < 200 || xhr.status > 299) {
+          return;
+        }
+
+        if (xhr.status === 200 && xhr.readyState === 4) {
+          ready = true;
+          console.log(`license response: session='${session.sessionId}'`);
+          callback(xhr.response);
+        }
+      };
+
+      xhr.onerror = xhr.onloadend = (event) => {
+        if (!ready) {
+          const response = xhr.response ? String.fromCharCode.apply(null, new Uint8Array(xhr.response)): '';
+          console.log(`${event.type}: session='${session.sessionId}', status='${xhr.statusText}', response='${response}'`);
+        }
+        xhr = null;
+      };
+
+      // Parse request message in XML.
+      const data = new Uint16Array(message);
+      const msg = String.fromCharCode.apply(null, data);
+      var i = 0;
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(msg, 'application/xml');
+      const names = xml.getElementsByTagName('name');
+      const values = xml.getElementsByTagName('value');
+
+      // Extract challenge.
+      const challenge = xml.getElementsByTagName('Challenge')[0];
+      const b64Str = challenge.childNodes[0].nodeValue.replace(/-/g, '+').replace(/_/g, '/');
+      var request = challenge ? atob(b64Str) : msg;
+      console.log(request === null ? 'no message in request!' : `challenge: ${request}`);
+
+      // Extract headers from message in XML format.
+      const headers = {};
+      for (i = 0; i < names.length; i++) {
+        headers[names[i].childNodes[0].nodeValue] = values[i].childNodes[0].nodeValue;
+      }
+      // PlayReady CDM Workarounds.
+      // See https://github.com/Orange-OpenSource/hasplayer.js/blob/b21165b9edecc2f7a1ea12217f887160a8a1d118/app/js/streaming/protection/drm/KeySystem_PlayReady.js#L64-L77
+      if (headers.hasOwnProperty('Content')) {
+        console.log('Content -> Content-Type');
+        headers['Content-Type'] = headers['Content'];
+        delete headers['Content'];
+      }
+      if (!headers['Content-Type']) {
+        headers['Content-Type'] = 'text/xml; charset=utf-8';
+      }
+      for (key in headers) {
+        if ('authorization' === key.toLowerCase()) {
+          xhr.withCredentials = true;
+        }
+        xhr.setRequestHeader(key, headers[key]);
+        console.log(`set header: ${key}: ${headers[key]}`);
+      }
+      xhr.send(request);
+      console.log(`sending request: session=${session.sessionId}, server=${url}`);
+    }
+
+    function generateRequest(content, session) {
+      if (content['cenc']) {
+        return fetch(content['cenc'])
+                   .then((response) => {
+                      console.log(`fetch cenc pssh atom: ${response.status}`);
+                      if (!response.ok) {
+                        throw new Error(`HTTP error, status = ${response.status}`);
+                      }
+                      return response.arrayBuffer(); })
+                   .then((pssh) => {
+                      console.log('pssh fetched');
+                      return session.generateRequest('cenc', pssh); });
+      }
+      if (content['KIDS']) {
+        return session.generateRequest(
+                    'keyids',
+                    new TextEncoder().encode(content['KIDS']));
+
+      }
+
+    }
+
+    function EMETest(play) {
+      populateContentList();
+      const content = getContentFromSelect();
+
+      var keySystem = 'com.microsoft.playready.recommendation';
+      const hw = document.getElementById('HW');
+      hw.onchange = EMEPlay;
+      if (hw.checked === true) {
+        keySystem = keySystem + '.3000';
+      }
+      console.log(`HW=${hw.checked}, key system='${keySystem} play=${play}'`);
+      const configs = [{
+        initDataTypes: ['keyids', 'cenc'],
+        audioCapabilities: [{ contentType: 'audio/mp4;codecs="mp4a.40.2"' }],
+        videoCapabilities: [{ contentType: 'video/mp4;codecs="avc1.640028"' }],
+        sessionTypes: ['temporary', 'persistent-license'],
+        persistentState: 'optional'
+      }];
+
+      navigator.requestMediaKeySystemAccess(keySystem, configs)
+        .then(
+          (access) => {
+            console.log('creating media key');
+            access.createMediaKeys()
+              .then(
+                (mediaKeys) => {
+                  console.log('creating media session');
+                  const session = mediaKeys.createSession();
+                  session.addEventListener('message', event => {
+                    console.log(`MediaKeyMessage type is '${event.messageType}'`);
+                    const handlers = {
+                      'license-request': _ => {
+                        console.log(`requesting license: session='${session.sessionId}'`);
+                        const url = play ? content['LA_URL'] : 'https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(msg:clientinfo)';
+                        requestLicense(url, session, event.message,
+                                       play ?
+                                         (response) =>
+                                           session.update(new Uint8Array(response))
+                                             .then(() => {
+                                                 const vid = document.getElementById('video');
+                                                 vid.setMediaKeys(mediaKeys);
+                                                 vid.src = content['content'];
+                                                 vid.play();
+                                             }) :
+                                          (response) => {
+                                            console.log(String.fromCharCode.apply(null, new Uint8Array(response)));
+                                            session.close().then(() => console.log('closed session')); }
+                                         );
+
+                      },
+                      'license-renewal': _ => {
+                        console.log('TODO: license-renewal');
+                      },
+                      'license-release': _ => {
+                        console.log('TODO: license-release');
+                      },
+                      'individualization-request': _ => {
+                        console.log('TODO: individualization-request');
+                      }
+                    };
+                    handlers[event.messageType]();
+                  });
+                  return generateRequest(content, session);
+                },
+                e => {
+                  console.log('failed to create media key: ' + e.name + ', msg: ' + e.message + '(' + e.code + ')');
+                });
+          },
+          _ => {
+            console.log('failed to request key system access');
+          });
+    }
+
+    function EMEPlay() { EMETest(true /* play */); }
+    window.onload = () => EMETest(false);
+
+  </script>
+
+
+</body><grammarly-desktop-integration data-grammarly-shadow-root="true"></grammarly-desktop-integration>
+
+</html>
